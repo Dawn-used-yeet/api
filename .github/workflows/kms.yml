@@ -1,0 +1,23 @@
+name: Upload Prebuilt Telegram Bot API Binary
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Download prebuilt binary
+      uses: actions/download-artifact@v4
+      with:
+        name: telegram-bot-api-binary
+        path: ./release-artifacts
+
+    - name: Create GitHub release
+      uses: ncipollo/release-action@v1
+      with:
+        artifacts: ./release-artifacts/telegram-bot-api-binary.tar.gz
+        token: ${{ secrets.PAT_TOKEN }}
+        name: Telegram Bot API Binary
+        tag: latest
