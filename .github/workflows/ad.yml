@@ -1,55 +1,15 @@
-name: Build Telegram Bot API
+name: Upload Prebuilt Telegram Bot API Binary
 
 on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-      with:
-        submodules: recursive
-
-    - name: Update and install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get upgrade -y
-        sudo apt-get install -y make git zlib1g-dev libssl-dev gperf cmake clang-14 libc++-14-dev libc++abi-14-dev
-
-    - name: Clone Telegram Bot API repository
-      run: |
-        git clone --recursive https://github.com/tdlib/telegram-bot-api.git
-
-    - name: Build Telegram Bot API
-      run: |
-        cd telegram-bot-api
-        rm -rf build
-        mkdir build
-        cd build
-        CXXFLAGS="-stdlib=libc++" CC=/usr/bin/clang-14 CXX=/usr/bin/clang++-14 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX:PATH=.. ..
-        cmake --build . --target install
-
-    - name: Create release artifact
-      run: |
-        cd telegram-bot-api/bin
-        tar -czvf telegram-bot-api-binary.tar.gz telegram-bot-api*
-      
-    - name: Upload release artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: telegram-bot-api-binary
-        path: telegram-bot-api/bin/telegram-bot-api-binary.tar.gz
-
   release:
-    needs: build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
 
     steps:
-    - name: Download release artifact
-      uses: actions/download-artifact@v3
+    - name: Download prebuilt binary
+      uses: actions/download-artifact@v4
       with:
         name: telegram-bot-api-binary
         path: ./release-artifacts
