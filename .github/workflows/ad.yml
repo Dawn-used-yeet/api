@@ -58,6 +58,6 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         artifacts: ./release-artifacts/telegram-bot-api-binary.tar.gz
-        token: ${{ secrets.GITHUB_TOKEN }}
+        token: ${{ secrets.PAT_TOKEN }}
         name: Telegram Bot API Binary
         tag: latest
