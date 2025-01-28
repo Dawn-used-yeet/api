@@ -1,23 +1,70 @@
-name: Upload Prebuilt Telegram Bot API Binary
+name: Build Windows Binary and Create Release
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - 'v*' # Trigger the workflow only when a tag matching 'v*' (e.g., v1.0.0) is pushed.
 
 jobs:
-  release:
-    runs-on: ubuntu-22.04
+  build-windows-binary:
+    runs-on: ubuntu-latest
 
     steps:
-    - name: Download prebuilt binary
-      uses: actions/download-artifact@v4
-      with:
-        name: telegram-bot-api-binary
-        path: ./release-artifacts
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-    - name: Create GitHub release
-      uses: ncipollo/release-action@v1
-      with:
-        artifacts: ./release-artifacts/telegram-bot-api-binary.tar.gz
-        token: ${{ secrets.PAT_TOKEN }}
-        name: Telegram Bot API Binary
-        tag: latest
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 cmake git
+
+      - name: Clone TDLib Telegram Bot API repo
+        run: |
+          git clone --recursive https://github.com/tdlib/telegram-bot-api.git
+          cd telegram-bot-api
+          git clone https://github.com/microsoft/vcpkg.git
+          cd vcpkg
+          ./bootstrap-vcpkg.sh
+          ./vcpkg install gperf:x64-windows openssl:x64-windows zlib:x64-windows
+
+      - name: Build Windows binary
+        run: |
+          cd telegram-bot-api
+          rm -rf build || true
+          mkdir build
+          cd build
+          cmake -DCMAKE_TOOLCHAIN_FILE=../vcpkg/scripts/buildsystems/vcpkg.cmake \
+                -DCMAKE_SYSTEM_NAME=Windows \
+                -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+                -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+                -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+                -DCMAKE_INSTALL_PREFIX:PATH=.. \
+                ..
+          cmake --build . --target install --config Release
+
+      - name: Upload Windows binary as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: telegram-bot-api-windows-binary
+          path: telegram-bot-api/bin/telegram-bot-api.exe
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        with:
+          tag_name: ${{ github.ref_name }} # Use the tag that triggered the workflow
+          release_name: "Release ${{ github.ref_name }}"
+          body: |
+            This release includes the precompiled Windows binary for the Telegram Bot API.
+            - Built using cross-compilation on Ubuntu.
+          draft: false
+          prerelease: false
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: telegram-bot-api/bin/telegram-bot-api.exe
+          asset_name: telegram-bot-api.exe
+          asset_content_type: application/octet-stream
